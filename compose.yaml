@@ -1,0 +1,43 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: opsorchestra-jenkins
+    restart: unless-stopped
+
+    environment:
+      TZ: America/Los_Angeles
+
+    volumes:
+      - jenkins_home:/var/jenkins_home
+
+    networks:
+      - opsorchestra
+
+    expose:
+      - "8080"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: opsorchestra-cloudflared
+    restart: unless-stopped
+
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN}
+
+    depends_on:
+      - jenkins
+
+    networks:
+      - opsorchestra
+
+volumes:
+  jenkins_home:
+    name: opsorchestra_jenkins_home
+
+networks:
+  opsorchestra:
+    name: opsorchestra

@@ -1,0 +1,28 @@
+# Secrets
+.env
+.env.*
+
+# Keep the example environment file
+!.env.example
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Jenkins
+jenkins_home/
+
+# Backups
+backups/
+*.tar
+*.tar.gz
+
+# Logs
+*.log
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
