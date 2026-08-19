@@ -6,6 +6,14 @@ The initial architecture consists of an always-on Jenkins controller hosted loca
 
 Future versions will dynamically provision ephemeral worker infrastructure using providers such as DigitalOcean and destroy that infrastructure when workloads complete.
 
+## Provisioner
+
+OpsOrchestra uses a dedicated Ubuntu provisioner agent for Terraform and cloud infrastructure operations.
+
+Provisioner setup and architecture are documented in:
+
+`provisioner/README.md`
+
 ## Current Architecture
 
 ```text

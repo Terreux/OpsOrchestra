@@ -1,0 +1,2 @@
+proxy_set_header CF-Access-Client-ID "YOUR_CLOUDFLARE_ACCESS_CLIENT_ID";
+proxy_set_header CF-Access-Client-Secret "YOUR_CLOUDFLARE_ACCESS_CLIENT_SECRET";
