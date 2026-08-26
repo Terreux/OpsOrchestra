@@ -369,10 +369,10 @@ Artifacts, logs, reports, and test results must be copied back before the worker
 * [x] Cloudflare machine authentication
 * [x] Local NGINX authentication proxy
 * [x] systemd-managed Jenkins agent
-* [ ] Terraform
-* [ ] DigitalOcean CLI
-* [ ] DigitalOcean credentials
-* [ ] Provisioner validation pipeline
+* [x] Terraform
+* [x] DigitalOcean CLI
+* [x] DigitalOcean credentials stored in Jenkins
+* [x] Provisioner validation pipeline
 
 ### Phase 3 — Ephemeral Workers
 
