@@ -4,12 +4,6 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Verify Repository') {
             steps {
                 sh '''
