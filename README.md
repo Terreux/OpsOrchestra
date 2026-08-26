@@ -376,7 +376,7 @@ Artifacts, logs, reports, and test results must be copied back before the worker
 
 ### Phase 3 — Ephemeral Workers
 
-* [ ] Terraform DigitalOcean provider
+* [x] Terraform DigitalOcean provider
 * [ ] Worker specification
 * [ ] Worker cloud-init bootstrap
 * [ ] Dynamic Jenkins agent registration
