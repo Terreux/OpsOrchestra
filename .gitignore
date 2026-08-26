@@ -5,11 +5,16 @@
 # Keep the example environment file
 !.env.example
 
-# Terraform
+# Terraform runtime
+.terraform/
 *.tfstate
 *.tfstate.*
-.terraform/
-.terraform.lock.hcl
+*.tfplan
+tfplan
+
+# Terraform crash logs
+crash.log
+crash.*.log
 
 # Jenkins
 jenkins_home/
