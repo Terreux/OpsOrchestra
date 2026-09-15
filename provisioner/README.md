@@ -279,6 +279,17 @@ Test:
 sudo nginx -t
 ```
 
+Install the NGINX recovery drop-in. It preserves the distribution's NGINX unit
+and retries failed starts every 10 seconds, including temporary DNS failures:
+
+```bash
+sudo install -d -m 0755 /etc/systemd/system/nginx.service.d
+sudo install -m 0644 \
+    provisioner/systemd/nginx.service.d/opsorchestra-recovery.conf \
+    /etc/systemd/system/nginx.service.d/opsorchestra-recovery.conf
+sudo systemctl daemon-reload
+```
+
 Restart NGINX:
 
 ```bash
@@ -419,19 +430,50 @@ Online
 
 # Service Dependencies
 
-The Jenkins agent requires the local NGINX proxy.
+The Jenkins connection requires the local NGINX proxy, but the Java process can
+run while that proxy is unavailable. The agent uses `Wants=nginx.service` and
+`After=nginx.service` to request the proxy at startup and wait for its initial
+start attempt. A failed or stopped proxy does not stop the agent; Remoting can
+continue retrying its connection.
 
-The dependency chain is:
+The NGINX recovery drop-in retries failed starts and process failures every
+10 seconds. If DNS is temporarily unavailable during the startup configuration
+check, NGINX retries until it can resolve the controller hostname. `network-online.target` is startup ordering,
+not a guarantee that DNS remains available during later maintenance.
 
-```text
-network-online.target
-        ↓
-nginx.service
-        ↓
-opsorchestra-agent.service
+The agent uses `Restart=always` with a 10-second delay. Both units disable
+start rate limiting so prolonged failures do not exhaust their restart attempts.
+Invalid configuration will also keep retrying; inspect the journal and correct
+the configuration rather than expecting retries to fix it. An explicit
+`systemctl stop` still leaves the stopped service down until it is started again.
+
+These settings recover process/startup failures. They do not detect a running
+Java process whose connection is stuck, or guarantee that interrupted jobs resume.
+
+---
+
+# Verify Service Recovery
+
+Check the effective settings and confirm `Provisioner-01` is online in Jenkins:
+
+```bash
+systemctl show opsorchestra-agent -p Wants -p Requires -p Restart -p StartLimitIntervalUSec
+systemctl show nginx -p Restart -p RestartUSec -p StartLimitIntervalUSec
+sudo journalctl -u nginx -u opsorchestra-agent --since "10 minutes ago" --no-pager
 ```
 
-If the Jenkins agent terminates unexpectedly, systemd automatically restarts it.
+For a controlled proxy outage test, with no jobs running:
+
+```bash
+sudo systemctl stop nginx
+systemctl is-active opsorchestra-agent
+sudo systemctl start nginx
+sudo journalctl -u nginx -u opsorchestra-agent --since "5 minutes ago" --no-pager
+```
+
+The agent should remain active while NGINX is stopped and reconnect after the
+proxy starts. Confirm Jenkins reports it online again. This tests reconnect
+behavior; an intentional stop does not exercise NGINX's automatic failure retries.
 
 ---
 
@@ -484,7 +526,9 @@ Verify Jenkins reports `Provisioner-01` online.
 └── opsorchestra-agent
 
 /etc/systemd/system/
-└── opsorchestra-agent.service
+├── opsorchestra-agent.service
+└── nginx.service.d/
+    └── opsorchestra-recovery.conf
 
 /opt/jenkins/
 ├── agent.jar

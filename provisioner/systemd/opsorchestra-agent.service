@@ -2,8 +2,10 @@
 Description=OpsOrchestra Jenkins Provisioner Agent
 Documentation=https://www.jenkins.io/
 After=network-online.target nginx.service
-Wants=network-online.target
-Requires=nginx.service
+# Let Remoting retry while the proxy is unavailable.
+Wants=network-online.target nginx.service
+# Keep process restart attempts available through prolonged outages.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
