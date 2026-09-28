@@ -23,9 +23,11 @@ resource "digitalocean_droplet" "smoke_test" {
     digitalocean_tag.opsorchestra.id
   ]
 
-  graceful_shutdown = true
+  # This disposable provisioning test holds no workload data. Delete directly
+  # rather than waiting for the guest OS to acknowledge a shutdown request.
+  graceful_shutdown = false
 
-  # The provider defaults to 60 seconds, which can expire during guest shutdown.
+  # Allow extra time for provider operations such as waiting for an unlocked Droplet.
   timeouts {
     delete = "5m"
   }

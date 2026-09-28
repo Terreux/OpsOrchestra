@@ -138,9 +138,12 @@ that state, the provisioner, and API access remaining available. If cleanup fail
 check DigitalOcean for remaining resources before discarding the workspace.
 Worker TTL enforcement and orphan cleanup are still planned.
 
-The smoke-test Droplet uses graceful shutdown with a five-minute Terraform
-delete timeout. If cleanup times out, preserve the Jenkins workspace and check
-the Droplet in DigitalOcean; a failed shutdown wait does not confirm deletion.
+The smoke-test Droplet holds no workload data and disables graceful shutdown,
+so cleanup requests deletion without waiting for the guest OS to power off.
+A five-minute Terraform delete timeout gives provider operations additional time;
+the provider may also impose internal polling limits. If cleanup fails, preserve
+the Jenkins workspace and check the Droplet in DigitalOcean; a failed cleanup
+does not confirm deletion.
 Retry cleanup using the same Terraform state and DigitalOcean credentials.
 
 ## Controller
