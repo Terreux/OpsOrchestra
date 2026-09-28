@@ -23,8 +23,15 @@ The current OpsOrchestra environment includes:
 * Local NGINX authentication proxy on the provisioner.
 * Cloudflare Access Service Token authentication for machine-to-machine access.
 * Jenkins provisioner agent managed by systemd.
+* Terraform and DigitalOcean CLI (`doctl`) on the provisioner.
+* DigitalOcean API credentials stored in Jenkins.
+* Jenkins pipeline for creating, verifying, and destroying a smoke-test Droplet.
+* NGINX and Jenkins agent recovery configuration for process and startup failures.
 
-The next major milestone is adding Terraform and DigitalOcean provisioning to the provisioner.
+The project is at the start of Phase 3. Infrastructure provisioning is implemented;
+the smoke-test Droplet does not yet bootstrap or connect as a Jenkins worker.
+The next milestone is a temporary worker that joins Jenkins, runs a small task,
+returns an artifact, and is removed when the job finishes.
 
 ## Current Architecture
 
@@ -61,14 +68,55 @@ The next major milestone is adding Terraform and DigitalOcean provisioning to th
 │  Jenkins agent.jar                                            │
 │  Provisioner-01                                               │
 │        │                                                      │
-│        ├── Terraform        [planned]                         │
-│        ├── doctl            [planned]                         │
+│        ├── Terraform                                          │
+│        ├── doctl                                              │
 │        └── provisioning tooling                               │
 │                                                               │
 └───────────────────────────────────────────────────────────────┘
 ```
 
 The provisioner connects outward to Jenkins. No Jenkins agent TCP port is exposed publicly.
+
+## Operating the Controller
+
+For a new checkout, copy `.env.example` to `.env` and set
+`CLOUDFLARE_TUNNEL_TOKEN` to the deployment's tunnel token. Keep `.env` out of Git.
+The Cloudflare tunnel must route the Jenkins hostname to `http://jenkins:8080`.
+
+From the repository root:
+
+```bash
+bash scripts/start.sh   # Pull images and start the controller and tunnel
+bash scripts/logs.sh    # Follow container logs
+bash scripts/stop.sh    # Stop containers; retain the Jenkins data volume
+```
+
+Provisioner installation and recovery are documented in the
+[provisioner guide](provisioner/README.md).
+
+## DigitalOcean Smoke Test
+
+The root [Jenkinsfile](Jenkinsfile) runs on a node with the `provisioner` label.
+It requires Terraform, `doctl`, and a Jenkins credential with ID
+`digitalocean-api-token`. Configure a Jenkins Pipeline to load this repository's
+`Jenkinsfile` from SCM.
+
+The pipeline:
+
+1. Checks the provisioner and installed tooling.
+2. Runs `terraform init` and `terraform validate`.
+3. Plans and applies the [smoke-test configuration](terraform/providers/digitalocean/smoke-test).
+4. Queries the created Droplet using `doctl`.
+5. Attempts `terraform destroy` in its `post { always { ... } }` cleanup block.
+
+The default Droplet is `opsorchestra-smoke-test`, using Ubuntu 24.04 in `sfo3`
+with size `s-1vcpu-1gb`. Running this pipeline creates billable infrastructure.
+It verifies provisioning and API access; it does not execute a task on the Droplet.
+
+Terraform state currently lives in the Jenkins workspace. Cleanup depends on
+that state, the provisioner, and API access remaining available. If cleanup fails,
+check DigitalOcean for remaining resources before discarding the workspace.
+Worker TTL enforcement and orphan cleanup are still planned.
 
 ## Controller
 
@@ -135,8 +183,8 @@ The provisioner currently runs:
 * NGINX
 * Git
 * curl
-
-Terraform, `doctl`, and additional infrastructure tooling will be installed as the provisioning layer is built.
+* Terraform
+* DigitalOcean CLI (`doctl`)
 
 The Jenkins node is currently:
 
@@ -154,11 +202,7 @@ digitalocean
 
 The provisioner is intended for infrastructure operations rather than normal build workloads.
 
-Detailed setup and recovery documentation is available at:
-
-```text
-provisioner/README.md
-```
+See the [provisioner guide](provisioner/README.md) for setup and recovery details.
 
 ## Provisioner Authentication Path
 
@@ -211,21 +255,30 @@ OpsOrchestra/
 ├── .env.example
 ├── .gitignore
 ├── README.md
-│
+├── AGENTS.md
+├── Jenkinsfile
 ├── scripts/
 │   ├── start.sh
 │   ├── stop.sh
 │   └── logs.sh
-│
-└── provisioner/
-    ├── README.md
-    ├── nginx/
-    │   └── opsorchestra-agent.conf
-    ├── systemd/
-    │   └── opsorchestra-agent.service
-    └── secrets/
-        ├── cloudflare-jenkins.conf.example
-        └── jenkins-agent.secret.example
+├── provisioner/
+│   ├── README.md
+│   ├── nginx/
+│   │   └── opsorchestra-agent.conf
+│   ├── systemd/
+│   │   ├── opsorchestra-agent.service
+│   │   └── nginx.service.d/
+│   │       └── opsorchestra-recovery.conf
+│   └── secrets/
+│       ├── cloudflare-jenkins.conf.example
+│       └── jenkins-agent.secret.example
+└── terraform/
+    └── providers/
+        └── digitalocean/
+            └── smoke-test/
+                ├── main.tf
+                ├── variables.tf
+                └── outputs.tf
 ```
 
 ## Secrets
@@ -351,6 +404,20 @@ The worker should contain nothing that must survive after the job completes.
 
 Artifacts, logs, reports, and test results must be copied back before the worker is destroyed.
 
+## Next Milestone: First Jenkins Worker Task
+
+Build on the smoke test to complete one worker lifecycle:
+
+1. Define a temporary Ubuntu worker with a unique Jenkins node name and label.
+2. Bootstrap its runtime and authenticated outbound connection through Cloudflare Access.
+3. Register the worker with Jenkins and wait for it to come online, with a timeout.
+4. Run a small task on that worker: record the hostname, OS information, and a timestamp.
+5. Archive the task output in Jenkins before destroying the worker.
+6. Remove the temporary Jenkins node and destroy the Droplet on success or failure.
+
+Worker bootstrap, credential delivery, and Jenkins registration are not implemented
+yet. The existing provisioner remains responsible for infrastructure operations.
+
 ## Roadmap
 
 ### Phase 1 — Controller
@@ -377,16 +444,18 @@ Artifacts, logs, reports, and test results must be copied back before the worker
 ### Phase 3 — Ephemeral Workers
 
 * [x] Terraform DigitalOcean provider
+* [x] Droplet provisioning smoke test with pipeline cleanup
 * [ ] Worker specification
 * [ ] Worker cloud-init bootstrap
 * [ ] Dynamic Jenkins agent registration
 * [ ] Workload execution
 * [ ] Artifact collection
 * [ ] Automated reporting
-* [ ] Automatic worker destruction
+* [ ] Automatic worker destruction and Jenkins node removal
 
 ### Phase 4 — Reliability
 
+* [x] Provisioner agent and NGINX service recovery configuration
 * [ ] Worker TTL enforcement
 * [ ] Orphaned resource cleanup
 * [ ] Infrastructure failure handling

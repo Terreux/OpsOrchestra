@@ -78,7 +78,9 @@ curl
 Git
 ```
 
-Terraform and DigitalOcean tooling will be installed separately.
+The current provisioner also has Terraform and `doctl` installed separately.
+Their installation is not yet automated by this guide. Both must be available
+to the `jenkins` user for the infrastructure pipeline.
 
 ---
 
@@ -571,15 +573,11 @@ The provisioner follows these principles:
 
 # Next Steps
 
-The next OpsOrchestra provisioner milestones are:
+Terraform, `doctl`, and the Jenkins DigitalOcean credential are in place. The
+repository's pipeline creates, verifies, and attempts to destroy a smoke-test
+Droplet from the `provisioner` node.
 
-1. Install Terraform.
-2. Install `doctl`.
-3. Configure DigitalOcean credentials securely.
-4. Run a Jenkins Pipeline on the `provisioner` label.
-5. Provision the first disposable DigitalOcean worker.
-6. Bootstrap the worker.
-7. Register the worker dynamically with Jenkins.
-8. Run a workload.
-9. Collect artifacts and reports.
-10. Destroy the worker automatically.
+The next milestone is to bootstrap a temporary worker, register it with Jenkins,
+run a small task, archive its output, and remove both the Droplet and Jenkins node.
+See the [project README](../README.md#next-milestone-first-jenkins-worker-task)
+for the scope and the [roadmap](../README.md#roadmap) for remaining work.
