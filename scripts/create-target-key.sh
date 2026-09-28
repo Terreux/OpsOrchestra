@@ -18,10 +18,16 @@ target=$1
 command -v ssh-keygen >/dev/null || fail "Install openssh-client first."
 
 key_dir=$(realpath -m -- "${2:-$HOME/.local/share/opsorchestra/ssh/$target}")
-repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-case "$key_dir/" in
-    "$repo_dir/"*) fail "Store keys outside the repository." ;;
-esac
+# Check the destination's ancestors for Git metadata. The script may have been
+# copied to a provisioner without the repository, so its location proves nothing.
+check_dir=$key_dir
+while :; do
+    if [[ -f $check_dir/.git || -f $check_dir/.git/HEAD ]]; then
+        fail "Store keys outside the Git checkout: $check_dir"
+    fi
+    [[ $check_dir != / ]] || break
+    check_dir=$(dirname -- "$check_dir")
+done
 
 # A fresh directory prevents accidental key replacement, including concurrent runs.
 mkdir -p -- "$(dirname -- "$key_dir")"

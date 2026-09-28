@@ -14,6 +14,9 @@ As your administrator account on the provisioner, from the repository root:
 bash scripts/create-target-key.sh web-01
 ```
 
+You can also copy `scripts/create-target-key.sh` to the provisioner on its own
+and run `bash create-target-key.sh web-01`; a repository checkout is not required.
+
 Use a stable inventory name for the target. The script creates:
 
 ```text
@@ -22,8 +25,9 @@ Use a stable inventory name for the target. The script creates:
 ```
 
 It prompts for a passphrase. Store that passphrase with the Jenkins credential.
-An optional second argument selects a different key directory outside this
-checkout. The directory must not already exist: rerunning the script refuses to
+An optional second argument selects a different key directory outside any Git
+checkout. The script checks the destination for Git metadata, independently of
+where the script is located. The directory must not already exist: rerunning the script refuses to
 replace keys. If generation is interrupted, inspect the directory before retrying
 with a new directory.
 
