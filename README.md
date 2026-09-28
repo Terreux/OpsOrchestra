@@ -104,8 +104,7 @@ key, and the target receives the public key for its `ops` account.
 * `scripts/setup-target.sh`: prepare an Ubuntu/Debian target with `ops`, SSH, and Python 3.
 
 See [target onboarding](docs/target-onboarding.md) for commands, Jenkins credential
-setup, host-key verification, and the first connection test. These scripts do not
-yet integrate target tasks into the Jenkins pipeline.
+setup, host-key verification, and the optional Jenkins target smoke test.
 
 ## DigitalOcean Smoke Test
 
@@ -120,7 +119,15 @@ The pipeline:
 2. Runs `terraform init` and `terraform validate`.
 3. Plans and applies the [smoke-test configuration](terraform/providers/digitalocean/smoke-test).
 4. Queries the created Droplet using `doctl`.
-5. Attempts `terraform destroy` in its `post { always { ... } }` cleanup block.
+5. Optionally connects to an existing target as `ops` and archives system details.
+6. Attempts `terraform destroy` in its `post { always { ... } }` cleanup block.
+
+Set `TARGET_HOST`, `TARGET_SSH_PORT`, `TARGET_SSH_CREDENTIAL_ID`, and
+`TARGET_KNOWN_HOSTS_CREDENTIAL_ID` in **Build with Parameters** to enable the
+target stage. It requires the Jenkins SSH Agent plugin, an SSH private-key
+credential, and a Secret file credential containing verified host keys. Leave
+`TARGET_HOST` blank for the original Droplet-only test. See the
+[target test setup](docs/target-onboarding.md#4-run-the-jenkins-smoke-test).
 
 The default Droplet is `opsorchestra-smoke-test`, using Ubuntu 24.04 in `sfo3`
 with size `s-1vcpu-1gb`. Running this pipeline creates billable infrastructure.
@@ -273,6 +280,7 @@ OpsOrchestra/
 ├── scripts/
 │   ├── create-target-key.sh
 │   ├── setup-target.sh
+│   ├── target-smoke-test.sh
 │   ├── start.sh
 │   ├── stop.sh
 │   └── logs.sh

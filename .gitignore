@@ -18,6 +18,7 @@ crash.*.log
 
 # Jenkins
 jenkins_home/
+reports/
 
 # Backups
 backups/

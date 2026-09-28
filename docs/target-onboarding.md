@@ -40,8 +40,8 @@ Create a Jenkins credential, scoped to the jobs/folder that need this target:
 * Passphrase: the passphrase selected during generation
 
 Do not put the private key into Git, job parameters, cloud-init, or build logs.
-Only the public `.pub` file goes to the target. Workers will receive the Jenkins
-credential for the task that needs it; pipeline integration is still pending.
+Only the public `.pub` file goes to the target. The smoke-test pipeline supplies
+the Jenkins credential to an SSH agent for the target task on the provisioner.
 
 ## 2. Prepare the target
 
@@ -95,6 +95,49 @@ For rotation, generate a new pair in a new directory, onboard its public key,
 update Jenkins, and verify access before removing the old authorized key. The
 setup script deliberately does not revoke existing keys.
 
-The next step is a Jenkins task that connects with this credential, records
-hostname/OS details, and archives the output. Disposable workers come after that
-connection and reporting path is established.
+## 4. Run the Jenkins smoke test
+
+The root `Jenkinsfile` now includes an optional **Target SSH Smoke Test** stage,
+after Droplet verification. It connects from the provisioner to the existing
+target as `ops`. The temporary Droplet is still only a provisioning test; it does
+not connect to the target.
+
+Jenkins needs the [SSH Agent plugin](https://www.jenkins.io/doc/pipeline/steps/ssh-agent/).
+The provisioner needs `ssh` and `ssh-agent` from `openssh-client`. The plugin loads
+the private key and its configured passphrase for the stage.
+
+Create a Jenkins **Secret file** credential, for example `ops-known-hosts-web-01`,
+containing the target's verified `known_hosts` entry from the manual connection.
+The entry must match the exact hostname/IP used by the build; for a non-default
+port its host field uses `[hostname]:port`. Hashed entries are also supported.
+Do not upload the private key as this file or trust an unverified `ssh-keyscan`
+result. The pipeline requires strict host-key verification and ignores the
+provisioner's personal SSH configuration and host-key files.
+
+In **Build with Parameters**, set:
+
+| Parameter | Example |
+| --- | --- |
+| `TARGET_HOST` | Your target's reachable hostname or IP |
+| `TARGET_SSH_PORT` | `22` |
+| `TARGET_SSH_CREDENTIAL_ID` | `ops-ssh-web-01` |
+| `TARGET_KNOWN_HOSTS_CREDENTIAL_ID` | `ops-known-hosts-web-01` |
+
+The SSH credential must be for `ops`; the command explicitly uses that account.
+Credential IDs and the host are configuration, not secret values. Only trusted
+job operators should choose targets and credentials. New Pipeline parameters may
+appear only after Jenkins first runs the updated Jenkinsfile. That initial run
+uses the blank host default and skips the target stage.
+
+The task collects identity, hostname, OS information, Python version, and UTC
+time. Jenkins archives `reports/target-smoke-test/result.txt`, including SSH
+errors when a connection attempt fails. SSH or remote-command failures fail the
+build; the stage has a two-minute timeout. Reports may be partial after a timeout
+and are absent if validation or credential loading fails before the task starts.
+
+Leave `TARGET_HOST` blank to skip the target stage. The existing Droplet creation
+and Terraform cleanup still run, so this pipeline continues to create billable
+infrastructure. Target failures and report-archiving failures still lead to the
+pipeline's `post` cleanup attempt. The target itself is never destroyed.
+
+Disposable workers come after this connection and reporting path is verified.
