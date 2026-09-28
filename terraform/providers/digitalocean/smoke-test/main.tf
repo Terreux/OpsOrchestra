@@ -24,4 +24,9 @@ resource "digitalocean_droplet" "smoke_test" {
   ]
 
   graceful_shutdown = true
+
+  # The provider defaults to 60 seconds, which can expire during guest shutdown.
+  timeouts {
+    delete = "5m"
+  }
 }
