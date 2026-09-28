@@ -573,6 +573,11 @@ The provisioner follows these principles:
 
 # Next Steps
 
+For target access, use the [target onboarding guide](../docs/target-onboarding.md)
+to generate an SSH key pair here, store the private key in Jenkins, and install
+the public key on the target's `ops` account. Keep these credentials separate
+from this provisioner's Jenkins Remoting secret.
+
 Terraform, `doctl`, and the Jenkins DigitalOcean credential are in place. The
 repository's pipeline creates, verifies, and attempts to destroy a smoke-test
 Droplet from the `provisioner` node.

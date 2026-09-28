@@ -94,6 +94,19 @@ bash scripts/stop.sh    # Stop containers; retain the Jenkins data volume
 Provisioner installation and recovery are documented in the
 [provisioner guide](provisioner/README.md).
 
+## Onboarding Task Targets
+
+Before adding disposable workers, prepare the servers they will operate on.
+The provisioner generates a dedicated SSH key pair, Jenkins stores the private
+key, and the target receives the public key for its `ops` account.
+
+* `scripts/create-target-key.sh`: generate an onboarding key pair outside the repository.
+* `scripts/setup-target.sh`: prepare an Ubuntu/Debian target with `ops`, SSH, and Python 3.
+
+See [target onboarding](docs/target-onboarding.md) for commands, Jenkins credential
+setup, host-key verification, and the first connection test. These scripts do not
+yet integrate target tasks into the Jenkins pipeline.
+
 ## DigitalOcean Smoke Test
 
 The root [Jenkinsfile](Jenkinsfile) runs on a node with the `provisioner` label.
@@ -258,9 +271,13 @@ OpsOrchestra/
 ├── AGENTS.md
 ├── Jenkinsfile
 ├── scripts/
+│   ├── create-target-key.sh
+│   ├── setup-target.sh
 │   ├── start.sh
 │   ├── stop.sh
 │   └── logs.sh
+├── docs/
+│   └── target-onboarding.md
 ├── provisioner/
 │   ├── README.md
 │   ├── nginx/
@@ -405,6 +422,9 @@ The worker should contain nothing that must survive after the job completes.
 Artifacts, logs, reports, and test results must be copied back before the worker is destroyed.
 
 ## Next Milestone: First Jenkins Worker Task
+
+First, [onboard a target](docs/target-onboarding.md) and verify a read-only SSH
+task from the existing provisioner. Then move the task to a temporary worker.
 
 Build on the smoke test to complete one worker lifecycle:
 
